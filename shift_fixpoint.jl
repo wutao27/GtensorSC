@@ -27,3 +27,4 @@ v = ones(3,1)/3
 alpha = 0.9
 gama = 0.8
 shift_fix(P,v,alpha,gama,n,m)
+# test git second commit
