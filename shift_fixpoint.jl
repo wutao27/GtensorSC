@@ -1,5 +1,10 @@
 # --------------- These codes compute the multilinear pagerank problem ---------------------
-#compute the kron of x
+# --------------- The paper can be found at :http://arxiv.org/abs/1409.1465
+
+# --------------- Author: Tao Wu
+#---------------- Email: wutao27@gmail.com
+
+#compute the corresponding value of the kron of x for index-th value of tensor P
 function compute_kron(P, index, x)
   m = size(P,1)-1
   result = 1
@@ -9,7 +14,7 @@ function compute_kron(P, index, x)
   return result
 end
 
-# row_vec, col_vec, val_vec is a sparse n^m by n matrix, x is a n-dim vector
+# Compute Px where P is a tensor
 function sparse_kron(P, x)
   n = size(x,1); m = size(P,1)-1; Px = zeros(n)
   col = P[1][1];sumval = 0
@@ -32,7 +37,7 @@ end
 
 # P is a sparse tensor with row(columns) list and value list
 function shift_fix(P, v, alpha, gama, n)
-  maxiter = 10000
+  maxiter = 1000
   tol = 1/10^(8)
   x_old = rand(n)
   x_old = x_old/sum(x_old)
@@ -42,13 +47,15 @@ function shift_fix(P, v, alpha, gama, n)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
     res = sum(abs(x_new-x_old))
     if res <= tol
-      println("find the fix point within ",i," iteration")
+      println("find the fix point within ",i," iterations")
       println("x = ", x_new)
-      break
+      return(x_new)
     end
     println("---iter ",i," residual is ",res)
     x_old = x_new
   end
+  println("cannot find the fix point within ",maxiter," iterations")
+  return(x_new)
 end
 
 # test case
