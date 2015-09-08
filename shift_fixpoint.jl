@@ -6,8 +6,7 @@
 
 #compute the corresponding value of the kron of x for index-th value of tensor P
 function compute_kron(P, index, x)
-  m = size(P,1)-1
-  result = 1
+  m = size(P,1)-1; result = 1
   for i in 1:m-1
     result = result*x[P[i+1][index]]
   end
@@ -18,7 +17,6 @@ end
 function sparse_kron(P, x)
   n = size(x,1); m = size(P,1)-1; Px = zeros(n)
   col = P[1][1];sumval = 0
-  #println("debug")
   for ind = 1:size(P[1],1)
     if P[1][ind]!= col
       Px[col]=sumval
@@ -37,14 +35,14 @@ end
 
 # P is a sparse tensor with row(columns) list and value list
 function shift_fix(P, v, alpha, gama, n)
-  maxiter = 1000
-  tol = 1/10^(8)
+  maxiter = 1000; tol = 1/10^(8); e = ones(n)/n
   x_old = rand(n)
   x_old = x_old/sum(x_old)
 #  row_vec, col_vec, val_vec = findnz(P)
   for i = 1:maxiter
     Px = sparse_kron(P, x_old)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
+    sumx = sum(x_new); x_new += (1-sumx)*e
     res = sum(abs(x_new-x_old))
     if res <= tol
       println("find the fix point within ",i," iterations")
@@ -55,7 +53,7 @@ function shift_fix(P, v, alpha, gama, n)
     x_old = x_new
   end
   println("cannot find the fix point within ",maxiter," iterations")
-  return(x_new)
+  return(zeros(n))
 end
 
 # test case
