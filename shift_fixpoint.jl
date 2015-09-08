@@ -1,35 +1,28 @@
 # --------------- These codes compute the multilinear pagerank problem ---------------------
 #compute the kron of x
-function compute_kron(index, x, m)
-  index = index - 1
-  ind_vec = zeros(m)
-  count = 1
-  while(index>=n)
-    ind_vec[count] = index%n
-    count+=1
-    index = index/n
-  end
+function compute_kron(P, index, x)
+  m = size(P,1)-1
   result = 1
-  for i in 1:m
-    result = result*x[ind_vec[i]+1]
+  for i in 1:m-1
+    result = result*x[P[i+1][index]]
   end
   return result
 end
 
 # row_vec, col_vec, val_vec is a sparse n^m by n matrix, x is a n-dim vector
-function sparse_kron(row_vec, col_vec, val_vec, x, m)
-  n = size(x)[1];Px = zeros(n)
-  col = col_vec[1];sumval = 0
+function sparse_kron(P, x)
+  n = size(x,1); m = size(P,1)-1; Px = zeros(n)
+  col = P[1][1];sumval = 0
   #println("debug")
-  for ind = 1:size(val_vec)[1]
-    if col_vec[ind]!= col
+  for ind = 1:size(P[1],1)
+    if P[1][ind]!= col
       Px[col]=sumval
-      sumval = val_vec[ind]*compute_kron(col_vec[ind],x,m)
-      col = col_vec[ind]
+      sumval = P[m+1][ind]*compute_kron(P,ind,x)
+      col = P[1][ind]
     else
-      sumval += val_vec[ind]*compute_kron(col_vec[ind],x,m)
+      sumval += P[m+1][ind]*compute_kron(P,ind,x)
     end
-    if ind==size(val_vec)[1]
+    if ind==size(P[1],1)
       Px[col]=sumval
     end
   end
@@ -37,15 +30,15 @@ function sparse_kron(row_vec, col_vec, val_vec, x, m)
 end
 
 
-# P is a sparse n^m by n matrix
-function shift_fix(P, v, alpha, gama, n, m)
+# P is a sparse tensor with row(columns) list and value list
+function shift_fix(P, v, alpha, gama, n)
   maxiter = 10000
   tol = 1/10^(8)
   x_old = rand(n)
   x_old = x_old/sum(x_old)
-  row_vec, col_vec, val_vec = findnz(P)
+#  row_vec, col_vec, val_vec = findnz(P)
   for i = 1:maxiter
-    Px = sparse_kron(row_vec, col_vec, val_vec, x_old, m)
+    Px = sparse_kron(P, x_old)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
     res = sum(abs(x_new-x_old))
     if res <= tol
@@ -59,9 +52,18 @@ function shift_fix(P, v, alpha, gama, n, m)
 end
 
 # test case
-n=3;m=2
+n=3
 P = sparse([1/3 1/3 1/3; 1/3 1/3 1/3; 1/3 1/3 1/3; 1/3 1/3 1/3; 0 0 1; 0 1/2 1/2; 0 1 0;0 0 1; 0 1 0])
-v = ones(3,1)/3
+v = ones(3)/3
+P = Array[Int32[1,1,1,1,2,2,2,2,2,2,2,3,3,3,3,3,3,3],Int32[1,1,2,3,1,1,1,2,3,3,3,1,1,2,2,2,3,3],Int32[1,2,1,1,1,2,3,1,1,2,3,1,2,1,2,3,1,2],Float64[1/3,1/3,1/3,1/3,1/3,1/3,1,1/3,1/3,1/2,1,1/3,1/3,1/3,1,1,1/3,1/2]]
 alpha = 0.9
 gama = 0.8
-shift_fix(P,v,alpha,gama,n,m)
+shift_fix(P,v,alpha,gama,n)
+ndims(P)
+length(P)
+size(P)
+size(P,1)
+size(P,2)
+length(rand(5))
+zeros(3,4)
+Int32[1,2,3,4]
