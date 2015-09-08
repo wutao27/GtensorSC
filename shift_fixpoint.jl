@@ -59,11 +59,3 @@ P = Array[Int32[1,1,1,1,2,2,2,2,2,2,2,3,3,3,3,3,3,3],Int32[1,1,2,3,1,1,1,2,3,3,3
 alpha = 0.9
 gama = 0.8
 shift_fix(P,v,alpha,gama,n)
-ndims(P)
-length(P)
-size(P)
-size(P,1)
-size(P,2)
-length(rand(5))
-zeros(3,4)
-Int32[1,2,3,4]
