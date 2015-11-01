@@ -3,3 +3,5 @@
 data
 ignore*
 *checkpoint*
+*.png
+figure

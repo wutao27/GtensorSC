@@ -153,7 +153,7 @@ end
 # T is the raw_tensor, P is the normalized tensor (column stochastic)
 # heapNodes and rNode are optional, if given the algorithm will continue from where it is left over
 function tensor_speclustering(T, P, numCuts::Integer; heapNodes = nothing, rNode = cutTree())
-  alpha = 0.95; gama = 0.2; cutArray = 0
+  alpha = 0.95; gama = 0.2; cutArray = 0; permEv = 0
   if heapNodes!=nothing
     h = heapNodes; rootNode = rNode
   else
@@ -190,7 +190,7 @@ function tensor_speclustering(T, P, numCuts::Integer; heapNodes = nothing, rNode
     end
     Collections.heappush!(h,t1);Collections.heappush!(h,t2)
   end
-  return (cutArray, rootNode, h)
+  return (permEv, cutArray, rootNode, h)
 end
 
 # print k words from treeNode
@@ -206,10 +206,23 @@ function print_words(wordDic, rootNode::cutTree, treeNode::cutTree, k)
     end
     tempInd = tempInd[head.ind]
   end
-  message(FILE_RUNTIME,"--------------------")
-  message(FILE_RUNTIME,"number of total words are $(treeNode.n)")
+  message(FILE_RESULT,"--------------------")
+  message(FILE_RESULT, "cut parameters are: TN = $(treeNode.TN), Tin = $(treeNode.Tin), Tout = $(treeNode.Tout), Tvol = $(treeNode.Tvol)")
+  message(FILE_RESULT,"number of total words are $(treeNode.n)")
   for i=1:minimum([k,length(tempInd)])
-    println(wordDic[tempInd[i]])
+    message(FILE_RESULT,wordDic[tempInd[i]])
   end
-  message(FILE_RUNTIME,"--------------------")
+  message(FILE_RESULT,"--------------------")
+end
+
+function print_figure(cutArray,file::String)
+  n = length(cutArray)
+  minPos = indmin(cutArray)
+  if minPos< n/2
+    ind = [1:2:2*minPos, (2*minPos+1):30:n]
+  else
+    ind = [1:30:(2*minPos-n), (2*minPos - n +1):2:n]
+  end
+  pl = plot(x=ind, y=cutArray[ind],Guide.xlabel("# nodes in group S"),Guide.ylabel("conductance cut"),Guide.title("Cut with $(n) nodes with $(minPos) and $(n-minPos)"))
+  draw(PNG("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/figure/"*file, 400, 130), pl)
 end
