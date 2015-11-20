@@ -4,17 +4,17 @@ using Gadfly
 using Cairo
 
 # read the transition tensor for fix_point and egenvectors
-P = read_tensor("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/tensor_w3_.txt")
+P = read_tensor("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/raw/tensor_w3_.txt")
 
 # read the raw tensor for the sweep_cut
-T =read_tensor("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/raw_tensor_w3_.txt")
+T =read_tensor("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/raw/raw_tensor_w3_.txt")
 
 FILE_RUNTIME = open(RUNTIME_LOG_PATH,"a");FILE_RESULT = open(RESULT_LOG_PATH,"a")
 close(FILE_RESULT);close(FILE_RUNTIME)
 
 
-(permEv, cutArray, r,h) = tensor_speclustering(T, P, 1)
-(permEv, cutArray, r,h) = tensor_speclustering(T,P,1,heapNodes = h, rNode = r)
+(r,h) = tensor_speclustering(T, P, 1, 0.6)
+(r,h) = tensor_speclustering(T,P,1, 0.6, heapNodes = h, rNode = r)
 
 indmin(cutArray[2000:length(cutArray)])
 cutArray[30655]

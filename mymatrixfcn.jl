@@ -2,7 +2,7 @@ module mymatrixfcn
 
 export MyMatrixFcn
 
-import Base.eltype, Base.size, Base.ndims, Base.issym
+import Base.eltype, Base.size, Base.ndims, Base.issym, Base.*
 
 abstract AbstractMatrixFcn{T}
 

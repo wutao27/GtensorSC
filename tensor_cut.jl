@@ -51,5 +51,5 @@ function sweep_cut(T, permEv)
     cut[i] = (TN - cutS1[i+1] - cutS2[i+1])/(3*min(volS1[i+1],TN-volS1[i+1]))
   end
   cutPoint = indmin(cut)
-  return (cutPoint, cut, cut[cutPoint], [ TN, cutS1[cutPoint+1], cutS2[cutPoint+1], volS1[cutPoint+1] ])
+  return (cutPoint, cut, cut[cutPoint], [ TN; cutS1[cutPoint+1]; cutS2[cutPoint+1]; volS1[cutPoint+1] ])
 end
