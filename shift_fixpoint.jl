@@ -33,7 +33,8 @@ function shift_fix(P, v, alpha, gama, n)
   for i = 1:maxiter
     Px = sparse_kron(P, x_old)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
-    sumx = sum(x_new); x_new += (1-sumx)*e
+    #sumx = sum(x_new); x_new += (1-sumx)*e
+    sumx = sum(x_new); x_new = x_new/sumx
     message(FILE_RUNTIME,"1-norm of x_old is $sumx")
     res = sum(abs(x_new-x_old))
     if res <= tol

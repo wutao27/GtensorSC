@@ -3,6 +3,12 @@
 
 # --------------- Author: Tao Wu
 #---------------- Email: wutao27@gmail.com
+# to modify
+# cutTree definition
+# generate_treeNodes
+# tensor_spectral_cluster
+# print_word
+# sweep_cut
 
 push!(LOAD_PATH, "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/")
 RUNTIME_LOG_PATH = "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/log/ignore_runtime.txt"
@@ -26,10 +32,11 @@ if !isdefined(:cutTree)
   type cutTree
     n::Int64  #size of clustering
     cutValue::Float64  # the cutValue from sweep_cut
-    TN::Float64  #sum of the tensor before the cut
-    Tin::Float64  #sum of the tensor within the cluster
-    Tout::Float64  #sum of the tensor outside the cluster
-    Tvol::Float64  #volumn of the nodes in the cluster
+    #TN::Float64  #sum of the tensor before the cut
+    #Tin::Float64  #sum of the tensor within the cluster
+    Ptran::Float64  # the probability from the cluster to the other cluster
+    invPtran::Float64 # the probabitlity from the other cluster to this cluster
+    Pvol::Float64  #volumn of the nodes in the cluster (The probability in the cluster)
     ind::BitArray  #ind[i]=true indicates i-th vertex from the parent tree node is in this cluster
     left::Union{cutTree, Void}
     right::Union{cutTree, Void}
@@ -38,16 +45,15 @@ if !isdefined(:cutTree)
 end
 isless(a::cutTree,b::cutTree) = a.n > b.n
 
-cutTree() = cutTree(0,0,0,0,0,0,BitArray(1),nothing,nothing,BitArray(1))
+cutTree() = cutTree(0,0,0,0,0,BitArray(1),nothing,nothing,BitArray(1))
 
 function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, para)
   leftNode = cutTree(); rightNode = cutTree()
   leftNode.n = cutPoint; rightNode.n = parentNode.n - cutPoint
   leftNode.cutValue = cutValue; rightNode.cutValue = cutValue
-  leftNode.TN = para[1]; rightNode.TN = para[1]
-  leftNode.Tin = para[2]; rightNode.Tin = para[3]
-  leftNode.Tout = para[3]; rightNode.Tout = para[2]
-  leftNode.Tvol = para[4]; rightNode.Tvol = para[1]-para[4]
+  leftNode.Ptran = para[1]; rightNode.Ptran = para[2]
+  leftNode.invPtran = para[2]; rightNode.invPtran = para[1]
+  leftNode.Pvol = para[3]; rightNode.Pvol = 1-para[3]
   leftNode.left = nothing; rightNode.left = nothing
   leftNode.right = nothing; rightNode.right = nothing
   leftNode.path = copy(parentNode.path); rightNode.path = copy(parentNode.path)
@@ -98,6 +104,7 @@ end
 # compute the eigenvector by calling shift_fix, tran_matrix and eigs
 function compute_egiv(P, al, ga)
   n = Int64(maximum(P[1]))
+  println("in compute_egiv n is $(n)")
   v = ones(n)/n
   message(FILE_RUNTIME, "\tsolving the fix-point problem")
   x =shift_fix(P,v,al,ga,n)
@@ -107,7 +114,7 @@ function compute_egiv(P, al, ga)
   A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT))
   message(FILE_RUNTIME,"\tsolving the egenvector problem")
   (ed, ev, nconv, niter, nmult, resid) = eigs(A,ritzvec=true,nev=2,which=:LM)
-  return ev
+  return (ev,RT,x)
 end
 
 
@@ -155,17 +162,20 @@ function cut_tensor(T, treeNode::cutTree, rootNode::cutTree)
       newT[j][i] = tempDic[newT[j][i]]
     end
   end
+  ttt = maximum(newT[1])
+  bbb = length(tempInd)
+  println("treeNode.n is $(treeNode.n) and len(newT) is $(ttt) and len(tempInd) is $(bbb)")
   return newT
 end
 
 
 # generate numCuts for the tensor
-# T is the raw_tensor, P is the normalized tensor (column stochastic)
+# P is the normalized tensor (column stochastic)
 # heapNodes and rNode are optional, if given the algorithm will continue from where it is left over
-function tensor_speclustering(T, P, numCuts::Integer, thres::Float64; heapNodes = nothing, rNode = cutTree())
+function tensor_speclustering(P, numCuts::Integer, thres::Float64; heapNodes = nothing, rNode = cutTree())
   alpha = 0.95; gama = 0.2; 
   if heapNodes!=nothing
-    println("yes")
+    #println("yes")
     h = heapNodes; rootNode = rNode
   else
     nowTime = Libc.strftime(time())
@@ -173,7 +183,7 @@ function tensor_speclustering(T, P, numCuts::Integer, thres::Float64; heapNodes 
     write(FILE_RUNTIME,"\n+++++++++++++++++++++++++++++++"*nowTime*"+++++++++++++++++++++++++\n")
     rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
     h = Collections.heapify([cutTree(),cutTree()])
-    dumyT = T;dumyP = P
+    dumyP = P
   end
 
   for i = 1:numCuts
@@ -187,17 +197,18 @@ function tensor_speclustering(T, P, numCuts::Integer, thres::Float64; heapNodes 
       end
       dumyP = cut_tensor(P, hp, rootNode)
       if length(dumyP[1])==0
+        message(FILE_RUNTIME,"empty tensor")
         continue
       end
-      dumyT = cut_tensor(T, hp, rootNode)
     end
-    ev = compute_egiv(dumyP,alpha,gama)
+    (ev,RT,x) = compute_egiv(dumyP,alpha,gama)
     permEv = sortperm(real(ev[:,2]))
+    println("dumP: $(maximum(dumyP[1])), len(permEv): $(length(permEv))")
     message(FILE_RUNTIME,"\t generating the sweep_cut")
-    (cutPoint, cutArray, cutValue, para) = sweep_cut(dumyT, permEv)
+    (cutPoint, cutArray, cutValue, para) = sweep_cut(RT, x, permEv)
     if cutValue > thres
-      message(FILE_RUNTIME, "cutValue > thres");
-      message(FILE_RESULT, "cutValue > thres");
+      message(FILE_RUNTIME, "cutValue ($cutValue) > thres");
+      message(FILE_RESULT, "cutValue ($cutValue)> thres");
       continue
     end
     if i==1 && heapNodes == nothing
@@ -207,6 +218,7 @@ function tensor_speclustering(T, P, numCuts::Integer, thres::Float64; heapNodes 
     else
       (t1,t2) = generate_treeNodes(hp, permEv, cutPoint, cutValue, para)
       message(FILE_RESULT, "\nsplit $(hp.n) into $(t1.n) and $(t2.n)")
+      assert(hp.n == length(cutArray)+1)
       print_figure(cutArray,"$(hp.n)_$(t1.n)_$(t2.n).png")
     end
     Collections.heappush!(h,t1);Collections.heappush!(h,t2)
@@ -228,7 +240,7 @@ function print_words(wordDic, rootNode::cutTree, treeNode::cutTree, k, sem)
     tempInd = tempInd[head.ind]
   end
   message(FILE_RESULT,"-------------------- semantic value is $(sem) -----------------")
-  message(FILE_RESULT, "cut parameters are: TN = $(treeNode.TN), Tin = $(treeNode.Tin), Tout = $(treeNode.Tout), Tvol = $(treeNode.Tvol)")
+  message(FILE_RESULT, "cut parameters are: Ptran = $(treeNode.Ptran), invPtran = $(treeNode.invPtran), Pvol = $(treeNode.Pvol)")
   message(FILE_RESULT,"number of total words are $(treeNode.n)")
   for i=1:minimum([k,length(tempInd)])
     message(FILE_RESULT,wordDic[tempInd[i]])
