@@ -71,9 +71,9 @@ end
 
 # function to pass to mymatrixfcn
 # make Adat row stocastic
-function mymult(output,b,Adat)
+function mymult(output,b,Adat,xT)
 	e = ones(size(b,1))
-  output = Adat*b + sum(b)/(size(b,1))*(e-Adat*e)
+  output = Adat*b + (xT*b)*(e-Adat*e)
   return output
 end
 
@@ -108,10 +108,11 @@ function compute_egiv(P, al, ga)
   v = ones(n)/n
   message(FILE_RUNTIME, "\tsolving the fix-point problem")
   x =shift_fix(P,v,al,ga,n)
+  xT = transpose(x)
   # compute the second left egenvector
   message(FILE_RUNTIME, "\tgenerating transition matrix")
   RT = tran_matrix(P, x)
-  A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT))
+  A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT, xT))
   message(FILE_RUNTIME,"\tsolving the egenvector problem")
   (ed, ev, nconv, niter, nmult, resid) = eigs(A,ritzvec=true,nev=2,which=:LM)
   return (ev,RT,x)
