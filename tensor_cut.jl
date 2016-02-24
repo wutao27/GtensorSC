@@ -1,6 +1,4 @@
-
 # --------------- These codes compute the tensor spectral clustering problem ---------------------
-# --------------- The paper can be found at :http://arxiv.org/abs/1502.05058
 
 # --------------- Author: Tao Wu
 #---------------- Email: wutao27@gmail.com
@@ -39,7 +37,7 @@ function sweep_cut(Px, x, permEv)
 
   #tranS2[1] = 1-tranAdd2; PS2[1] = 1;
 
-  message(FILE_RUNTIME,"calculate cuts")
+  println("calculate cuts")
   for i=1:n-1
     ind = permEv[i]
     tempRow = tPx[:,ind]; tempCol = Px[:,ind]

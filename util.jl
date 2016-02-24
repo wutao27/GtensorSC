@@ -1,20 +1,14 @@
-# --------------- These codes implement some utility functions for tensor spectral clustering ---------------------
-# --------------- The paper can be found at :http://arxiv.org/abs/1502.05058
+# --------------- These codes implement some utility functions for general tensor spectral clustering ---------------------
 
 # --------------- Author: Tao Wu
 #---------------- Email: wutao27@gmail.com
-# to modify
-# cutTree definition
-# generate_treeNodes
-# tensor_spectral_cluster
-# print_word
-# sweep_cut
 
+# to modify
+# path; ind
+# readtensor skip
+# println
+# cut_tensor
 push!(LOAD_PATH, "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/")
-RUNTIME_LOG_PATH = "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/log/ignore_runtime.txt"
-RESULT_LOG_PATH = "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/data/log/ignore_log.txt"
-FILE_RUNTIME = open(RUNTIME_LOG_PATH,"a")
-FILE_RESULT = open(RESULT_LOG_PATH,"a")
 
 using mymatrixfcn
 import Base.isless
@@ -22,30 +16,28 @@ import Base.isless
 include("shift_fixpoint.jl")
 include("tensor_cut.jl")
 
-function message(f,str::AbstractString)
-  write(f,str*"\n")
-  println(str)
-end
+ALPHA = 0.8; GAMA = 0.2; 
+MIN_NUM = 5;
+MAX_NUM = 100;
 
 # --------------- DataType to store the cuts -------------------------
 if !isdefined(:cutTree)
   type cutTree
     n::Int64  #size of clustering
     cutValue::Float64  # the cutValue from sweep_cut
-    #TN::Float64  #sum of the tensor before the cut
-    #Tin::Float64  #sum of the tensor within the cluster
     Ptran::Float64  # the probability from the cluster to the other cluster
     invPtran::Float64 # the probabitlity from the other cluster to this cluster
     Pvol::Float64  #volumn of the nodes in the cluster (The probability in the cluster)
-    ind::BitArray  #ind[i]=true indicates i-th vertex from the parent tree node is in this cluster
+    subInd::Array{Int64,1}
+    tenInd::Array{Int64,1}
+    data::Array{Any}
     left::Union{cutTree, Void}
     right::Union{cutTree, Void}
-    path::BitArray  # path from the root (e.g., (true, ture, false) means root->left->left->right)
   end
 end
 isless(a::cutTree,b::cutTree) = a.n > b.n
 
-cutTree() = cutTree(0,0,0,0,0,BitArray(1),nothing,nothing,BitArray(1))
+cutTree() = cutTree(0,0,0,0,0,Int64[],Int64[],Int64[],nothing,nothing)
 
 function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, para)
   leftNode = cutTree(); rightNode = cutTree()
@@ -56,14 +48,28 @@ function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, par
   leftNode.Pvol = para[3]; rightNode.Pvol = 1-para[3]
   leftNode.left = nothing; rightNode.left = nothing
   leftNode.right = nothing; rightNode.right = nothing
-  leftNode.path = copy(parentNode.path); rightNode.path = copy(parentNode.path)
-  push!(leftNode.path, true); push!(rightNode.path, false)
-  leftNode.ind = falses(parentNode.n); rightNode.ind = trues(parentNode.n)
+  #leftNode.path = copy(parentNode.path); rightNode.path = copy(parentNode.path)
+  #push!(leftNode.path, true); push!(rightNode.path, false)
+  #leftNode.ind = falses(parentNode.n); rightNode.ind = trues(parentNode.n)
+  # for i=1:cutPoint
+  #   leftNode.ind[ permEv[i] ] = true
+  #   rightNode.ind[ permEv[i] ] = false
+  # end
   for i=1:cutPoint
-    leftNode.ind[ permEv[i] ] = true
-    rightNode.ind[ permEv[i] ] = false
+    push!(leftNode.subInd, parentNode.subInd[ permEv[i] ])
+    push!(leftNode.tenInd, permEv[i])
   end
+  for i=cutPoint+1:length(permEv)
+    push!(rightNode.subInd, parentNode.subInd[ permEv[i] ])
+    push!(rightNode.tenInd, permEv[i])
+  end
+
+  leftNode.data = cut_tensor(parentNode, leftNode)
+  rightNode.data = cut_tensor(parentNode, rightNode)
+
+
   parentNode.left = leftNode; parentNode.right = rightNode
+  parentNode.subInd = Int64[]; parentNode.tenInd = Int64[]; parentNode.data = []
   return (leftNode, rightNode)
 end
 
@@ -73,7 +79,7 @@ end
 # make Adat row stocastic
 function mymult(output,b,Adat,xT)
 	e = ones(size(b,1))
-  output = Adat*b + (xT*b)*(e-Adat*e)
+  output = Adat*b + (xT*b)[1]*(e-Adat*e)
   return output
 end
 
@@ -104,16 +110,16 @@ end
 # compute the eigenvector by calling shift_fix, tran_matrix and eigs
 function compute_egiv(P, al, ga)
   n = Int64(maximum(P[1]))
-  println("in compute_egiv n is $(n)")
+  #println("in compute_egiv n is $(n)")
   v = ones(n)/n
-  message(FILE_RUNTIME, "\tsolving the fix-point problem")
+  println("\tsolving the fix-point problem")
   x =shift_fix(P,v,al,ga,n)
   xT = transpose(x)
   # compute the second left egenvector
-  message(FILE_RUNTIME, "\tgenerating transition matrix")
+  println("\tgenerating transition matrix")
   RT = tran_matrix(P, x)
   A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT, xT))
-  message(FILE_RUNTIME,"\tsolving the egenvector problem")
+  println("\tsolving the egenvector problem")
   (ed, ev, nconv, niter, nmult, resid) = eigs(A,ritzvec=true,nev=2,which=:LM)
   return (ev,RT,x)
 end
@@ -123,20 +129,12 @@ end
 # T is the original tensor
 # currentMap is the array thats maps current indices to the original indices
 # permEv is the permutation of sorted egenvector
-function cut_tensor(T, treeNode::cutTree, rootNode::cutTree)
-  n = rootNode.n
+function cut_tensor(parentNode, treeNode::cutTree)
+  n = Int64(parentNode.n)
+  T = parentNode.data
   nz = size(T[1],1) # number of non-zeros
   m = size(T,1)-1  # tensor dimension
-  tempInd = [i for i=1:n]
-  head = rootNode
-  for i=2:length(treeNode.path)
-    if treeNode.path[i]
-      head = head.left
-    else
-      head = head.right
-    end
-    tempInd = tempInd[head.ind]
-  end
+  tempInd = treeNode.tenInd
 
   tempDic = [tempInd[i] => i for i = 1:length(tempInd)] # new indices map
   validInd = falses(n)
@@ -163,64 +161,101 @@ function cut_tensor(T, treeNode::cutTree, rootNode::cutTree)
       newT[j][i] = tempDic[newT[j][i]]
     end
   end
-  ttt = maximum(newT[1])
-  bbb = length(tempInd)
-  println("treeNode.n is $(treeNode.n) and len(newT) is $(ttt) and len(tempInd) is $(bbb)")
+
   return newT
+ 
+  # check if the sub-tensor has any zero columns
+  # allIndex = zeros(length(tempInd))
+  # for i=1:length(newT[1])
+  #   allIndex[newT[1][i]] = 1
+  # end
+  # permIndex = sortperm(allIndex)
+  # if allIndex[permIndex[1]]==1 || length(newT[1])==0
+  #   return newT
+  # end
+
+  # println("find empty indices in sub-tensor")
+  # cutPoint = 1
+  # while allIndex[permIndex[cutPoint]]==0
+  #   cutPoint = cutPoint + 1
+  # end
+
+  # (t1,t2) = generate_treeNodes(treeNode, permIndex, cutPoint-1, 0, [0,0,0])
+  # return cut_tensor(newT, t2)
 end
 
+function refine(T, treeNode::cutTree)
+  allIndex = zeros(treeNode.n)
+  for i=1:length(T[1])
+    allIndex[T[1][i]] = 1
+  end
+  permIndex = sortperm(allIndex)
+  if allIndex[permIndex[1]]==1 || length(T[1])==0
+    return T
+  end
+
+  println("find empty indices in sub-tensor")
+  cutPoint = 1
+  while allIndex[permIndex[cutPoint]]==0
+    cutPoint = cutPoint + 1
+  end
+
+  (t1,t2) = generate_treeNodes(treeNode, permIndex, cutPoint-1, 0, [0,0,0])
+  return t2.data
+end
 
 # generate numCuts for the tensor
 # P is the normalized tensor (column stochastic)
 # heapNodes and rNode are optional, if given the algorithm will continue from where it is left over
-function tensor_speclustering(P, numCuts::Integer, thres::Float64; heapNodes = nothing, rNode = cutTree())
-  alpha = 0.95; gama = 0.2; 
-  if heapNodes!=nothing
-    #println("yes")
-    h = heapNodes; rootNode = rNode
-  else
-    nowTime = Libc.strftime(time())
-    write(FILE_RESULT,"\n+++++++++++++++++++++++++++++++"*nowTime*"+++++++++++++++++++++++++\n")
-    write(FILE_RUNTIME,"\n+++++++++++++++++++++++++++++++"*nowTime*"+++++++++++++++++++++++++\n")
-    rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
-    h = Collections.heapify([cutTree(),cutTree()])
-    dumyP = P
-  end
+function tensor_speclustering(P, thres::Float64)
 
-  for i = 1:numCuts
-    message(FILE_RUNTIME,"-----------calculating #$i cut----------")
-    if i!=1 || heapNodes!=nothing
+  nowTime = Libc.strftime(time())
+  rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
+  rootNode.subInd = [ii for ii=1:rootNode.n] ; rootNode.tenInd = [ii for ii=1:rootNode.n]
+  rootNode.data = P
+  h = Collections.heapify([cutTree(),cutTree()])
+  dumyP = P
+
+  for i = 1:100000
+    println("-----------calculating #$i cut----------")
+    if i!=1
       hp = Collections.heappop!(h)
-      if hp.n == 0
-        message(FILE_RUNTIME,"no more cut");write(FILE_RESULT, "\nno more cut")
+      if hp.n <= MIN_NUM
+        println("no more cut");
         Collections.heappush!(h,hp);
         return (rootNode, h)
       end
-      dumyP = cut_tensor(P, hp, rootNode)
-      if length(dumyP[1])==0
-        message(FILE_RUNTIME,"empty tensor")
+      #dumyP = cut_tensor(dumyP, hp)
+      dumyP = refine(hp.data, hp)
+      if length(dumyP[1]) ==0 || maximum(dumyP[1]) <= MIN_NUM
+        println("nearly empty tensor")
         continue
       end
     end
-    (ev,RT,x) = compute_egiv(dumyP,alpha,gama)
+
+    (ev,RT,x) = compute_egiv(dumyP,ALPHA,GAMA)
     permEv = sortperm(real(ev[:,2]))
     println("dumP: $(maximum(dumyP[1])), len(permEv): $(length(permEv))")
-    message(FILE_RUNTIME,"\t generating the sweep_cut")
+    println("\t generating the sweep_cut")
     (cutPoint, cutArray, cutValue, para) = sweep_cut(RT, x, permEv)
-    if cutValue > thres
-      message(FILE_RUNTIME, "cutValue ($cutValue) > thres");
-      message(FILE_RESULT, "cutValue ($cutValue)> thres");
+    #if maximum(dumyP[1])<MAX_NUM && cutValue > MIN_PRO + maximum(dumyP[1])*(thres - MIN_PRO)/MAX_NUM
+    if cutValue > thres && maximum(dumyP[1])<MAX_NUM
+      println("cutValue ($cutValue) > thres");
+      println("cutValue ($cutValue)> thres");
       continue
     end
-    if i==1 && heapNodes == nothing
+    if i==1
       (t1,t2) = generate_treeNodes(rootNode, permEv, cutPoint, cutValue, para)
-      message(FILE_RESULT, "\nsplit $(rootNode.n) into $(t1.n) and $(t2.n)")
-      print_figure(cutArray,"$(rootNode.n)_$(t1.n)_$(t2.n).png")
+      println("\nsplit $(rootNode.n) into $(t1.n) and $(t2.n)")
+      #print_figure(cutArray,"$(rootNode.n)_$(t1.n)_$(t2.n).png")
     else
+      if hp.n > length(cutArray)+1
+        hp = hp.right
+      end
       (t1,t2) = generate_treeNodes(hp, permEv, cutPoint, cutValue, para)
-      message(FILE_RESULT, "\nsplit $(hp.n) into $(t1.n) and $(t2.n)")
+      println("\nsplit $(hp.n) into $(t1.n) and $(t2.n)")
       assert(hp.n == length(cutArray)+1)
-      print_figure(cutArray,"$(hp.n)_$(t1.n)_$(t2.n).png")
+      #print_figure(cutArray,"$(hp.n)_$(t1.n)_$(t2.n).png")
     end
     Collections.heappush!(h,t1);Collections.heappush!(h,t2)
   end
@@ -228,46 +263,36 @@ function tensor_speclustering(P, numCuts::Integer, thres::Float64; heapNodes = n
 end
 
 # print k words from treeNode
-function print_words(wordDic, rootNode::cutTree, treeNode::cutTree, k, sem)
-  n = rootNode.n
-  tempInd = [i for i=1:n]
-  head = rootNode
-  for i=2:length(treeNode.path)
-    if treeNode.path[i]
-      head = head.left
-    else
-      head = head.right
-    end
-    tempInd = tempInd[head.ind]
-  end
-  message(FILE_RESULT,"-------------------- semantic value is $(sem) -----------------")
-  message(FILE_RESULT, "cut parameters are: Ptran = $(treeNode.Ptran), invPtran = $(treeNode.invPtran), Pvol = $(treeNode.Pvol)")
-  message(FILE_RESULT,"number of total words are $(treeNode.n)")
+function print_words(wordDic, treeNode::cutTree, k, sem)
+  tempInd = treeNode.subInd
+  println("-------------------- semantic value is $(sem) -----------------")
+  println("cut parameters are: Ptran = $(treeNode.Ptran), invPtran = $(treeNode.invPtran), Pvol = $(treeNode.Pvol)")
+  println("number of total words are $(treeNode.n)")
   for i=1:minimum([k,length(tempInd)])
-    message(FILE_RESULT,wordDic[tempInd[i]])
+    println(wordDic[tempInd[i]])
   end
-  message(FILE_RESULT,"--------------------")
+  println("--------------------")
 end
 
-function print_figure(cutArray,file::AbstractString)
-  n = length(cutArray)+1
-  minPos = indmin(cutArray)
-  stepSize1 = round(Int64,n/1200+1)
-  stepSize2 = round(Int64,n/10000+1)
-  if minPos< n/2
-    ind = [1:stepSize2:2*minPos; (2*minPos+1):stepSize1:(n-1)]
-  else
-    ind = [1:stepSize1:(2*minPos-n); (2*minPos - n +1):stepSize2:(n-1)]
-  end
-  pl = plot(x=ind, y=cutArray[ind],Guide.xlabel("# nodes in group S"),Guide.ylabel("conductance cut"),Guide.title("Cut with $(n) nodes with $(minPos) and $(n-minPos)"))
-  draw(PNG("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/figure/"*file, 400, 130), pl)
-end
+# function print_figure(cutArray,file::AbstractString)
+#   n = length(cutArray)+1
+#   minPos = indmin(cutArray)
+#   stepSize1 = round(Int64,n/1200+1)
+#   stepSize2 = round(Int64,n/10000+1)
+#   if minPos< n/2
+#     ind = [1:stepSize2:2*minPos; (2*minPos+1):stepSize1:(n-1)]
+#   else
+#     ind = [1:stepSize1:(2*minPos-n); (2*minPos - n +1):stepSize2:(n-1)]
+#   end
+#   pl = plot(x=ind, y=cutArray[ind],Guide.xlabel("# nodes in group S"),Guide.ylabel("conductance cut"),Guide.title("Cut with $(n) nodes with $(minPos) and $(n-minPos)"))
+#   draw(PNG("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/figure/"*file, 400, 130), pl)
+# end
 
 function asso_matrix(T, rootNode::cutTree)
   m = size(T,1)-1  # tensor dimension
-  indVec = zeros(Int32,rootNode.n)
+  indVec = zeros(Int64,rootNode.n)
   println("traverse tree");
-  traCount = trav_tree(rootNode, rootNode, indVec, 1)
+  traCount = trav_tree(rootNode, indVec, 1)
   println("generating association matrix")
   assert(traCount - 1 == maximum(indVec))
   mat = zeros(traCount-1, traCount-1)
@@ -285,20 +310,9 @@ function asso_matrix(T, rootNode::cutTree)
   return mat
 end
 
-function trav_tree(rootNode::cutTree, treeNode::cutTree, indVec, startInd::Integer)
-  #println(treeNode.n)
+function trav_tree(treeNode::cutTree, indVec, startInd::Integer)
   if treeNode.left == nothing && treeNode.right == nothing
-    n = rootNode.n
-    tempInd = [i for i=1:n]
-    head = rootNode
-    for i=2:length(treeNode.path)
-      if treeNode.path[i]
-        head = head.left
-      else
-        head = head.right
-      end
-      tempInd = tempInd[head.ind]
-    end
+    tempInd = treeNode.subInd
 
     for i in tempInd
       indVec[i] = startInd
@@ -306,20 +320,20 @@ function trav_tree(rootNode::cutTree, treeNode::cutTree, indVec, startInd::Integ
     return startInd+1
 
   else
-    newStart = trav_tree(rootNode, treeNode.left, indVec, startInd)
-    return trav_tree(rootNode, treeNode.right, indVec, newStart)
+    newStart = trav_tree(treeNode.left, indVec, startInd)
+    return trav_tree(treeNode.right, indVec, newStart)
   end
 end
 
-function print_tree_word(rootNode::cutTree, treeNode::cutTree, semVec, startInd::Integer, wordDic; semTol = 99999, numTol = 0)
+function print_tree_word(treeNode::cutTree, semVec, startInd::Integer, wordDic; semTol_low = 0, semTol_up = 1, numTol_low = 0, numTol_up = 100)
   if treeNode.left == nothing && treeNode.right == nothing
-    if semVec[startInd]<semTol && treeNode.n > numTol
-      print_words(wordDic, rootNode, treeNode, 100, semVec[startInd])
+    if semVec[startInd]>semTol_low && semVec[startInd]<semTol_up && treeNode.n < numTol_up && treeNode.n > numTol_low
+      print_words(wordDic, treeNode, 100, semVec[startInd])
     end
     return startInd+1
 
   else
-    newStart = print_tree_word(rootNode, treeNode.left, semVec, startInd, wordDic, semTol = semTol, numTol = numTol)
-    return print_tree_word(rootNode, treeNode.right, semVec, newStart, wordDic, semTol = semTol, numTol = numTol)
+    newStart = print_tree_word(treeNode.left, semVec, startInd, wordDic, semTol_low = semTol_low, semTol_up = semTol_up, numTol_low = numTol_low, numTol_up = numTol_up)
+    return print_tree_word(treeNode.right, semVec, newStart, wordDic, semTol_low = semTol_low, semTol_up = semTol_up, numTol_low = numTol_low, numTol_up = numTol_up)
   end
 end

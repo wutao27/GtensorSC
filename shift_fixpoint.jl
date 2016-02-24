@@ -26,7 +26,7 @@ end
 
 # P is a sparse tensor with row(columns) list and value list
 function shift_fix(P, v, alpha, gama, n)
-  maxiter = 500; tol = 1/10^(8); e = ones(n)/n
+  maxiter = 10000; tol = 1/10^(6); e = ones(n)/n
   x_old = rand(n)
   x_old = x_old/sum(x_old)
 #  row_vec, col_vec, val_vec = findnz(P)
@@ -35,15 +35,15 @@ function shift_fix(P, v, alpha, gama, n)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
     #sumx = sum(x_new); x_new += (1-sumx)*e
     sumx = sum(x_new); x_new = x_new/sumx
-    message(FILE_RUNTIME,"1-norm of x_old is $sumx")
+    #println("1-norm of x_old is $sumx")
     res = sum(abs(x_new-x_old))
     if res <= tol
-      message(FILE_RUNTIME,"find the fix point within $i iterations")
+      println("find the fix point within $i iterations")
       return(x_new)
     end
-    message(FILE_RUNTIME,"---iter $i residual is $res")
+    #println("---iter $i residual is $res")
     x_old = x_new
   end
-  message(FILE_RUNTIME,"cannot find the fix point within $maxiter iterations")
+  println("cannot find the fix point within $maxiter iterations")
   error("cannot find the fix point within $maxiter iterations")
 end
