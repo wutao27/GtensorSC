@@ -287,6 +287,16 @@ function asso_matrix(T, rootNode::cutTree)
   return mat
 end
 
+function group_score(P, rootNode::cutTree)
+  mat=asso_matrix(P,r);
+  n = size(mat,1)
+  A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult2(output, b, sparse(mat)))
+  (ed, ev, nconv, niter, nmult, resid) = eigs(A,ritzvec=true,nev=1,which=:LM);
+  gscore = real(ev[:,1])
+  gscore = gscore/sum(gscore)
+  return gscore
+end
+
 function trav_tree(treeNode::cutTree, indVec, startInd::Integer)
   if treeNode.left == nothing && treeNode.right == nothing
     tempInd = treeNode.subInd
