@@ -31,11 +31,11 @@ if !isdefined(:cutTree)
     Ptran::Float64  # the probability from the cluster to the other cluster
     invPtran::Float64 # the probabitlity from the other cluster to this cluster
     Pvol::Float64  #volumn of the nodes in the cluster (The probability in the cluster)
-    subInd::Array{Int64,1}
-    tenInd::Array{Int64,1}
-    data::Array{Any}
-    left::Union{cutTree, Void}
-    right::Union{cutTree, Void}
+    subInd::Array{Int64,1} # nodes indices in this group
+    tenInd::Array{Int64,1} # tensor indices(from parent) in this group
+    data::Array{Any} # tensor data
+    left::Union{cutTree, Void} # left child
+    right::Union{cutTree, Void} # right child
   end
 end
 isless(a::cutTree,b::cutTree) = a.n > b.n
@@ -89,6 +89,7 @@ function mymult2(output,b,Adat)
 end
 
 # load the tensor data
+# format assumption: the first two rows are non-data
 function read_tensor(abPath::AbstractString)
   f = readdlm(abPath, skipstart=2)
   m = size(f,2)
@@ -101,6 +102,7 @@ function read_tensor(abPath::AbstractString)
   return P
 end
 
+# normalize the tensor
 function norm_tensor(P)
   n = length(P[1]); m = size(P,1)-1
   tab = Dict()
@@ -130,12 +132,10 @@ end
 # compute the eigenvector by calling shift_fix, tran_matrix and eigs
 function compute_egiv(P, al, ga)
   n = Int64(maximum(P[1]))
-  #println("in compute_egiv n is $(n)")
   v = ones(n)/n
   println("\tcomputing the super-spacey random surfer vector")
   x =shift_fix(P,v,al,ga,n)
   xT = transpose(x)
-  # compute the second left egenvector
   println("\tgenerating transition matrix: P[x]")
   RT = tran_matrix(P, x)
   A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT, xT))
@@ -145,15 +145,12 @@ function compute_egiv(P, al, ga)
 end
 
 
-# function for generate a subtensor based on cutPoint
-# T is the original tensor
-# currentMap is the array thats maps current indices to the original indices
-# permEv is the permutation of sorted egenvector
+# function for generate a subtensor from parentNode
 function cut_tensor(parentNode, treeNode::cutTree)
   n = Int64(parentNode.n)
-  T = parentNode.data
-  nz = size(T[1],1) # number of non-zeros
-  m = size(T,1)-1  # tensor dimension
+  P = parentNode.data
+  nz = size(P[1],1) # number of non-zeros
+  m = size(P,1)-1  # tensor dimension
   tempInd = treeNode.tenInd
 
   tempDic = [tempInd[i] => i for i = 1:length(tempInd)] # new indices map
@@ -165,35 +162,34 @@ function cut_tensor(parentNode, treeNode::cutTree)
   flag = trues(nz)  # whether to keep the entry in newT
   for i = 1:nz
     for j = 1:m
-      if !validInd[ T[j][i] ]
+      if !validInd[ P[j][i] ]
         flag[i] = false; continue
       end
     end
   end
 
-  newT = Array[T[1][flag]]
+  newP = Array[P[1][flag]]
   for i=2:m+1
-    push!(newT,T[i][flag])
+    push!(newP,P[i][flag])
   end
 
-  for i=1:length(newT[1]) # changing to new column indices
+  for i=1:length(newP[1]) # changing to new column indices
     for j = 1:m
-      newT[j][i] = tempDic[newT[j][i]]
+      newP[j][i] = tempDic[newP[j][i]]
     end
   end
-
-  return newT
- 
+  return newP
 end
 
-function refine(T, treeNode::cutTree)
+# check if there is empty indices in tensor P
+function refine(P, treeNode::cutTree)
   allIndex = zeros(treeNode.n)
-  for i=1:length(T[1])
-    allIndex[T[1][i]] = 1
+  for i=1:length(P[1])
+    allIndex[P[1][i]] = 1
   end
   permIndex = sortperm(allIndex)
-  if allIndex[permIndex[1]]==1 || length(T[1])==0
-    return T
+  if allIndex[permIndex[1]]==1 || length(P[1])==0
+    return P
   end
 
   println("\tprocess empty indices in sub-tensor")
@@ -206,12 +202,10 @@ function refine(T, treeNode::cutTree)
   return t2.data
 end
 
-# generate numCuts for the tensor
-# P is the normalized tensor (column stochastic)
-# heapNodes and rNode are optional, if given the algorithm will continue from where it is left over
+# generate recursive two-way cuts for the tensor
+# P is tensor data
+# algParameters contains parameters for the algorithm: ALPHA, MIN_NUM, MAX_NUM, PHI
 function tensor_speclustering(P, algParameters::algPara)
-
-  nowTime = Libc.strftime(time())
   rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
   rootNode.subInd = [ii for ii=1:rootNode.n] ; rootNode.tenInd = [ii for ii=1:rootNode.n]
   norm_tensor(P); rootNode.data = P
@@ -275,34 +269,21 @@ function print_words(wordDic, treeNode::cutTree, k, sem)
   println("--------------------")
 end
 
-# function print_figure(cutArray,file::AbstractString)
-#   n = length(cutArray)+1
-#   minPos = indmin(cutArray)
-#   stepSize1 = round(Int64,n/1200+1)
-#   stepSize2 = round(Int64,n/10000+1)
-#   if minPos< n/2
-#     ind = [1:stepSize2:2*minPos; (2*minPos+1):stepSize1:(n-1)]
-#   else
-#     ind = [1:stepSize1:(2*minPos-n); (2*minPos - n +1):stepSize2:(n-1)]
-#   end
-#   pl = plot(x=ind, y=cutArray[ind],Guide.xlabel("# nodes in group S"),Guide.ylabel("conductance cut"),Guide.title("Cut with $(n) nodes with $(minPos) and $(n-minPos)"))
-#   draw(PNG("/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/figure/"*file, 400, 130), pl)
-# end
-
-function asso_matrix(T, rootNode::cutTree)
-  m = size(T,1)-1  # tensor dimension
+# generate the association matrix for clusters
+function asso_matrix(P, rootNode::cutTree)
+  m = size(P,1)-1
   indVec = zeros(Int64,rootNode.n)
   println("traverse tree");
   traCount = trav_tree(rootNode, indVec, 1)
   println("generating association matrix")
   assert(traCount - 1 == maximum(indVec))
   mat = zeros(traCount-1, traCount-1)
-  for i = 1:size(T[1],1)
-    col1 = indVec[T[1][i]]; col2 = indVec[T[2][i]]
+  for i = 1:size(P[1],1)
+    col1 = indVec[P[1][i]]; col2 = indVec[P[2][i]]
     if col1 == col2
       continue
     end
-    val = T[m+1][i];
+    val = P[m+1][i];
     mat[col1, col1] += val
     mat[col2, col1] += val
   end
@@ -311,6 +292,7 @@ function asso_matrix(T, rootNode::cutTree)
   return mat
 end
 
+# compute popularity score
 function group_score(P, rootNode::cutTree)
   mat=asso_matrix(P,r);
   n = size(mat,1)
@@ -321,6 +303,7 @@ function group_score(P, rootNode::cutTree)
   return gscore
 end
 
+# traverse the result cutTree
 function trav_tree(treeNode::cutTree, indVec, startInd::Integer)
   if treeNode.left == nothing && treeNode.right == nothing
     tempInd = treeNode.subInd
@@ -336,6 +319,7 @@ function trav_tree(treeNode::cutTree, indVec, startInd::Integer)
   end
 end
 
+# print clutering result
 function print_tree_word(treeNode::cutTree, semVec, startInd::Integer, wordDic; semTol_low = 0, semTol_up = 1, numTol_low = 0, numTol_up = 100)
   if treeNode.left == nothing && treeNode.right == nothing
     if semVec[startInd]>semTol_low && semVec[startInd]<semTol_up && treeNode.n < numTol_up && treeNode.n > numTol_low

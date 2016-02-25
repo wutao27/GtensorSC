@@ -1,4 +1,4 @@
-# --------------- These codes compute the tensor spectral clustering problem ---------------------
+# --------------- These codes compute sweep_cut for biased conductance ---------------------
 
 # --------------- Author: Tao Wu
 #---------------- Email: wutao27@gmail.com

@@ -1,6 +1,5 @@
 
-# --------------- These codes compute the multilinear pagerank problem ---------------------
-# --------------- The paper can be found at :http://arxiv.org/abs/1409.1465
+# ------ These codes compute the stationary distribution for the super-spacey random surfer -------------
 
 # --------------- Author: Tao Wu
 #---------------- Email: wutao27@gmail.com
