@@ -6,8 +6,6 @@
 # to modify
 # path; ind
 # readtensor skip
-# println
-# cut_tensor
 push!(LOAD_PATH, pwd())
 
 using mymatrixfcn
@@ -16,9 +14,14 @@ import Base.isless
 include("shift_fixpoint.jl")
 include("tensor_cut.jl")
 
-ALPHA = 0.8; GAMA = 0.2; 
-MIN_NUM = 5;
-MAX_NUM = 100;
+GAMA = 0.2; 
+
+type algPara
+  ALPHA::Float64
+  MIN_NUM::Int64
+  MAX_NUM::Int64
+  PHI::Float64
+end
 
 # --------------- DataType to store the cuts -------------------------
 if !isdefined(:cutTree)
@@ -181,7 +184,7 @@ end
 # generate numCuts for the tensor
 # P is the normalized tensor (column stochastic)
 # heapNodes and rNode are optional, if given the algorithm will continue from where it is left over
-function tensor_speclustering(P, thres::Float64)
+function tensor_speclustering(P, algParameters::algPara)
 
   nowTime = Libc.strftime(time())
   rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
@@ -194,28 +197,28 @@ function tensor_speclustering(P, thres::Float64)
     println("-----------calculating #$i cut----------")
     if i!=1
       hp = Collections.heappop!(h)
-      if hp.n <= MIN_NUM
+      if hp.n <= algParameters.MIN_NUM
         println("no more cut");
         Collections.heappush!(h,hp);
         return (rootNode, h)
       end
       #dumyP = cut_tensor(dumyP, hp)
       dumyP = refine(hp.data, hp)
-      if length(dumyP[1]) ==0 || maximum(dumyP[1]) <= MIN_NUM
+      if length(dumyP[1]) ==0 || maximum(dumyP[1]) <= algParameters.MIN_NUM
         println("nearly empty tensor")
         continue
       end
     end
 
-    (ev,RT,x) = compute_egiv(dumyP,ALPHA,GAMA)
+    (ev,RT,x) = compute_egiv(dumyP,algParameters.ALPHA,GAMA)
     permEv = sortperm(real(ev[:,2]))
     println("dumP: $(maximum(dumyP[1])), len(permEv): $(length(permEv))")
     println("\t generating the sweep_cut")
     (cutPoint, cutArray, cutValue, para) = sweep_cut(RT, x, permEv)
-    #if maximum(dumyP[1])<MAX_NUM && cutValue > MIN_PRO + maximum(dumyP[1])*(thres - MIN_PRO)/MAX_NUM
-    if cutValue > thres && maximum(dumyP[1])<MAX_NUM
-      println("cutValue ($cutValue) > thres");
-      println("cutValue ($cutValue)> thres");
+
+    if cutValue > algParameters.PHI && maximum(dumyP[1])<algParameters.MAX_NUM
+      println("cutValue ($cutValue) > PHI");
+      println("cutValue ($cutValue)> PHI");
       continue
     end
     if i==1
