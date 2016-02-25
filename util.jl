@@ -8,7 +8,7 @@
 # readtensor skip
 # println
 # cut_tensor
-push!(LOAD_PATH, "/Users/hasayake/Dropbox/research/2015/08-27-ml-pagerank/")
+push!(LOAD_PATH, pwd())
 
 using mymatrixfcn
 import Base.isless
@@ -48,13 +48,6 @@ function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, par
   leftNode.Pvol = para[3]; rightNode.Pvol = 1-para[3]
   leftNode.left = nothing; rightNode.left = nothing
   leftNode.right = nothing; rightNode.right = nothing
-  #leftNode.path = copy(parentNode.path); rightNode.path = copy(parentNode.path)
-  #push!(leftNode.path, true); push!(rightNode.path, false)
-  #leftNode.ind = falses(parentNode.n); rightNode.ind = trues(parentNode.n)
-  # for i=1:cutPoint
-  #   leftNode.ind[ permEv[i] ] = true
-  #   rightNode.ind[ permEv[i] ] = false
-  # end
   for i=1:cutPoint
     push!(leftNode.subInd, parentNode.subInd[ permEv[i] ])
     push!(leftNode.tenInd, permEv[i])
@@ -66,7 +59,6 @@ function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, par
 
   leftNode.data = cut_tensor(parentNode, leftNode)
   rightNode.data = cut_tensor(parentNode, rightNode)
-
 
   parentNode.left = leftNode; parentNode.right = rightNode
   parentNode.subInd = Int64[]; parentNode.tenInd = Int64[]; parentNode.data = []
@@ -164,24 +156,6 @@ function cut_tensor(parentNode, treeNode::cutTree)
 
   return newT
  
-  # check if the sub-tensor has any zero columns
-  # allIndex = zeros(length(tempInd))
-  # for i=1:length(newT[1])
-  #   allIndex[newT[1][i]] = 1
-  # end
-  # permIndex = sortperm(allIndex)
-  # if allIndex[permIndex[1]]==1 || length(newT[1])==0
-  #   return newT
-  # end
-
-  # println("find empty indices in sub-tensor")
-  # cutPoint = 1
-  # while allIndex[permIndex[cutPoint]]==0
-  #   cutPoint = cutPoint + 1
-  # end
-
-  # (t1,t2) = generate_treeNodes(treeNode, permIndex, cutPoint-1, 0, [0,0,0])
-  # return cut_tensor(newT, t2)
 end
 
 function refine(T, treeNode::cutTree)
