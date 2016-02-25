@@ -91,7 +91,7 @@ end
 # load the tensor data
 # format assumption: the first two rows are non-data
 function read_tensor(abPath::AbstractString)
-  f = readdlm(abPath, skipstart=2)
+  f = readdlm(abPath, skipstart=0)
   m = size(f,2)
   P = Array[round(Int32,vec(f[:,1]))]
   for i = 2:m-1
