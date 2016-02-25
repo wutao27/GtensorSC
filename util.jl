@@ -4,8 +4,8 @@
 #---------------- Email: wutao27@gmail.com
 
 # to modify
-# path; ind
 # readtensor skip
+
 push!(LOAD_PATH, pwd())
 
 using mymatrixfcn
@@ -101,20 +101,45 @@ function read_tensor(abPath::AbstractString)
   return P
 end
 
+function norm_tensor(P)
+  n = length(P[1]); m = size(P,1)-1
+  tab = Dict()
+  for k=1:length(P[1])
+    tempArray = []
+    for i = 2:m
+      push!(tempArray,P[i][k])
+    end
+    tempKey = tuple(tempArray...)
+    if haskey(tab,tempKey)
+      tab[tempKey] = tab[tempKey] + P[m+1][k]
+    else
+      tab[tempKey] = P[m+1][k]
+    end
+  end
+
+  for k=1:length(P[1])
+    tempArray = []
+    for i = 2:m
+      push!(tempArray,P[i][k])
+    end
+    tempKey = tuple(tempArray...)
+    P[m+1][k] = P[m+1][k]/tab[tempKey]
+  end
+end
 
 # compute the eigenvector by calling shift_fix, tran_matrix and eigs
 function compute_egiv(P, al, ga)
   n = Int64(maximum(P[1]))
   #println("in compute_egiv n is $(n)")
   v = ones(n)/n
-  println("\tsolving the fix-point problem")
+  println("\tcomputing the super-spacey random surfer vector")
   x =shift_fix(P,v,al,ga,n)
   xT = transpose(x)
   # compute the second left egenvector
-  println("\tgenerating transition matrix")
+  println("\tgenerating transition matrix: P[x]")
   RT = tran_matrix(P, x)
   A = MyMatrixFcn{Float64}(n,n,(output, b) -> mymult(output, b, RT, xT))
-  println("\tsolving the egenvector problem")
+  println("\tsolving the egenvector problem for P[x]")
   (ed, ev, nconv, niter, nmult, resid) = eigs(A,ritzvec=true,nev=2,which=:LM)
   return (ev,RT,x)
 end
@@ -171,7 +196,7 @@ function refine(T, treeNode::cutTree)
     return T
   end
 
-  println("find empty indices in sub-tensor")
+  println("\tprocess empty indices in sub-tensor")
   cutPoint = 1
   while allIndex[permIndex[cutPoint]]==0
     cutPoint = cutPoint + 1
@@ -189,48 +214,47 @@ function tensor_speclustering(P, algParameters::algPara)
   nowTime = Libc.strftime(time())
   rootNode = cutTree();rootNode.n = Int64(maximum(P[1]))
   rootNode.subInd = [ii for ii=1:rootNode.n] ; rootNode.tenInd = [ii for ii=1:rootNode.n]
-  rootNode.data = P
+  norm_tensor(P); rootNode.data = P
   h = Collections.heapify([cutTree(),cutTree()])
   dumyP = P
 
-  for i = 1:100000
-    println("-----------calculating #$i cut----------")
+  for i = 1:typemax(Int64)
+    println("\n-----------calculating #$i cut----------")
     if i!=1
       hp = Collections.heappop!(h)
       if hp.n <= algParameters.MIN_NUM
-        println("no more cut");
+        println("completed recursive two-way cut");
         Collections.heappush!(h,hp);
         return (rootNode, h)
       end
       #dumyP = cut_tensor(dumyP, hp)
       dumyP = refine(hp.data, hp)
       if length(dumyP[1]) ==0 || maximum(dumyP[1]) <= algParameters.MIN_NUM
-        println("nearly empty tensor")
+        println("tensor size smaller than MIN_NUM")
         continue
       end
     end
 
+    println("\ttensor size $(maximum(dumyP[1])) with $(length(dumyP[1])) non-zeros")
     (ev,RT,x) = compute_egiv(dumyP,algParameters.ALPHA,GAMA)
     permEv = sortperm(real(ev[:,2]))
-    println("dumP: $(maximum(dumyP[1])), len(permEv): $(length(permEv))")
-    println("\t generating the sweep_cut")
+    println("\tgenerating the sweep_cut")
     (cutPoint, cutArray, cutValue, para) = sweep_cut(RT, x, permEv)
 
     if cutValue > algParameters.PHI && maximum(dumyP[1])<algParameters.MAX_NUM
-      println("cutValue ($cutValue) > PHI");
-      println("cutValue ($cutValue)> PHI");
+      println("did not cut the tensor as biased conductance ($cutValue) > PHI");
       continue
     end
     if i==1
       (t1,t2) = generate_treeNodes(rootNode, permEv, cutPoint, cutValue, para)
-      println("\nsplit $(rootNode.n) into $(t1.n) and $(t2.n)")
+      println("-- split $(rootNode.n) into $(t1.n) and $(t2.n) --")
       #print_figure(cutArray,"$(rootNode.n)_$(t1.n)_$(t2.n).png")
     else
       if hp.n > length(cutArray)+1
         hp = hp.right
       end
       (t1,t2) = generate_treeNodes(hp, permEv, cutPoint, cutValue, para)
-      println("\nsplit $(hp.n) into $(t1.n) and $(t2.n)")
+      println("-- split $(hp.n) into $(t1.n) and $(t2.n) --")
       assert(hp.n == length(cutArray)+1)
       #print_figure(cutArray,"$(hp.n)_$(t1.n)_$(t2.n).png")
     end

@@ -29,7 +29,6 @@ function shift_fix(P, v, alpha, gama, n)
   maxiter = 10000; tol = 1/10^(6); e = ones(n)/n
   x_old = rand(n)
   x_old = x_old/sum(x_old)
-#  row_vec, col_vec, val_vec = findnz(P)
   for i = 1:maxiter
     Px = sparse_kron(P, x_old)
     x_new = (alpha/(1+gama))*Px + ((1-alpha)/(1+gama))*v + (gama/(1+gama))*x_old
@@ -38,12 +37,11 @@ function shift_fix(P, v, alpha, gama, n)
     #println("1-norm of x_old is $sumx")
     res = sum(abs(x_new-x_old))
     if res <= tol
-      println("find the fix point within $i iterations")
+      #println("find the fix point within $i iterations")
       return(x_new)
     end
     #println("---iter $i residual is $res")
     x_old = x_new
   end
-  println("cannot find the fix point within $maxiter iterations")
   error("cannot find the fix point within $maxiter iterations")
 end

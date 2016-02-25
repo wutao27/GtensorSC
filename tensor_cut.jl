@@ -37,7 +37,7 @@ function sweep_cut(Px, x, permEv)
 
   #tranS2[1] = 1-tranAdd2; PS2[1] = 1;
 
-  println("calculate cuts")
+  println("\tcalculate cuts")
   for i=1:n-1
     ind = permEv[i]
     tempRow = tPx[:,ind]; tempCol = Px[:,ind]
@@ -88,6 +88,5 @@ function sweep_cut(Px, x, permEv)
     cut[i] = max(prob1,prob2)
   end
   cutPoint = indmin(cut)
-  println("length(cut) is ($(length(cut)))")
   return (cutPoint, cut, cut[cutPoint], [ PS1[cutPoint+1]; PS2[cutPoint+1]; volS1[cutPoint+1] ])
 end
