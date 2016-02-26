@@ -2,7 +2,7 @@ import os
 import math
 import itertools
 CUR_DIR = os.getcwd()
-DATA_DIR = CUR_DIR + "/../raw_data/"
+DATA_DIR = CUR_DIR + "/../data/English_ngram/"
 FILE_NAME = ["w3_.txt", "w4_.txt"]
 TENSOR_DIM = [3,4]
 
@@ -81,7 +81,7 @@ def process_data(i):
     wordDic = get_word_dic(textFile,TENSOR_DIM[i])
     tensorDic = get_tensor_dic(textFile, wordDic, TENSOR_DIM[i])
     dataDic = get_data_dic(tensorDic, TENSOR_DIM[i])
-    print_file(CUR_DIR+"/../data/"+"tensor_"+FILE_NAME[i], CUR_DIR+"/../data/"+"dic_"+FILE_NAME[i], dataDic, wordDic, TENSOR_DIM[i])
+    print_file(DATA_DIR+"tensor_"+FILE_NAME[i], DATA_DIR+"dic_"+FILE_NAME[i], dataDic, wordDic, TENSOR_DIM[i])
     
     
 process_data(0)

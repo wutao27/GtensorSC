@@ -63,9 +63,15 @@ function generate_treeNodes(parentNode::cutTree, permEv, cutPoint, cutValue, par
   leftNode.data = cut_tensor(parentNode, leftNode)
   rightNode.data = cut_tensor(parentNode, rightNode)
 
-  parentNode.left = leftNode; parentNode.right = rightNode
-  parentNode.subInd = Int64[]; parentNode.tenInd = Int64[]; parentNode.data = []
-  return (leftNode, rightNode)
+  if cutPoint>=parentNode.n - cutPoint || (para[1]==0 && para[2]==0 && para[3]==0)
+    parentNode.left = leftNode; parentNode.right = rightNode
+    parentNode.subInd = Int64[]; parentNode.tenInd = Int64[]; parentNode.data = []
+    return (leftNode, rightNode)
+  else
+    parentNode.left = rightNode; parentNode.right = leftNode
+    parentNode.subInd = Int64[]; parentNode.tenInd = Int64[]; parentNode.data = []
+    return (rightNode, leftNode)
+  end
 end
 
 # ---------------------------------------------------------------

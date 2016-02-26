@@ -3,7 +3,7 @@ import math
 import itertools
 
 CUR_DIR = os.getcwd()
-DATA_DIR = CUR_DIR + "/../raw_data/"
+DATA_DIR = CUR_DIR + "/../data/Chinese_ngram/"
 
 def get_word_dic(textFile, n):
     wordDic = {}; index = 1
@@ -84,11 +84,11 @@ textFile = DATA_DIR+"Chinese_3gram.csv";dim = 3
 wordDic = get_word_dic(textFile,dim)
 tensorDic = get_tensor_dic(textFile, wordDic, dim)
 dataDic = get_data_dic(tensorDic)
-print_file(CUR_DIR+"/../data/tensor_Chinese_3gram.txt", CUR_DIR+"/../data/dic_Chinese_3gram.txt", dataDic, wordDic, dim)
+print_file(DATA_DIR+"tensor_Chinese_3gram.txt", DATA_DIR+"dic_Chinese_3gram.txt", dataDic, wordDic, dim)
 
 textFile = DATA_DIR+"Chinese_4gram.csv";dim = 4
 wordDic = get_word_dic(textFile,dim)
 tensorDic = get_tensor_dic(textFile, wordDic, dim)
 dataDic = get_data_dic(tensorDic)
-print_file(CUR_DIR+"/../data/tensor_Chinese_4gram.txt", CUR_DIR+"/../data/dic_Chinese_4gram.txt", dataDic, wordDic, dim)
+print_file(DATA_DIR+"tensor_Chinese_4gram.txt", DATA_DIR+"dic_Chinese_4gram.txt", dataDic, wordDic, dim)
 
