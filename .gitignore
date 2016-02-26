@@ -1,7 +1,4 @@
 *.pdf
-*.txt
-*data
-ignore*
 *checkpoint*
 *.png
 figure
