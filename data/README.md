@@ -19,7 +19,7 @@ where `tensor_w3_.txt` and `tensor_w4_.txt` are the tensors with sparse storage 
 
 ## Chinese n-gram Data
 Click [here](https://www.cs.purdue.edu/homes/wu577/data/Chinese_ngram.zip)
-to download Chinese n-gram data. **Replace** the empty `Chinese_ngram` folder with the one downloaded. then run the python script `ngramCh.py` Under `script` folder to generate the tensor data:
+to download Chinese n-gram data. **Put** the folder `Chinese_ngram` folder under the `data` folder. then run the python script `ngramCh.py` Under `script` folder to generate the tensor data:
 ```bash
 $ cd script
 $ python ngramCh.py
@@ -29,7 +29,7 @@ Similar with the English n-gram case, you will have two tensors with dic files.
 
 ## Enron Data
 Click [here](https://www.cs.purdue.edu/homes/wu577/data/Enron.zip)
-to download the Enron data. **Replace** the empty `Enron` folder. You will have a tensor with its dic file.
+to download the Enron data. **Put** the folder `Enron` under the `data` folder. You will have a tensor with its dic file.
 
 
 ## Openflight Data
