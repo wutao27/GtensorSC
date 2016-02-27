@@ -16,4 +16,4 @@
 * `util.jl` contains the main function for recursive two-way cuts and some utility functions.
 
 ### Usage
-Please refer the demos.
+Please refer to the demos.
