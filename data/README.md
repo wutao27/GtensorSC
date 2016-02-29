@@ -38,4 +38,5 @@ It is already included in the openFlight folder:
 * `airport.txt` contains ID and airport description
 * `tensor_openflight.txt`   is the tensor data
 * `dic_openflight.txt`  ID (first number) of the tenosr and ID (second number) of the airline/airport (539airlines+2939airports).
+* `rectangle.txt`  is the raw rectangular tensor of openFlight data.
 
