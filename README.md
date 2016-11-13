@@ -17,3 +17,4 @@
 
 ### Usage
 Please refer to the demos.
+Note: The codes should be compatible with Julia 0.4 and 0.3. If you get errors when using Julia 0.5, please try 0.4 or 0.3.

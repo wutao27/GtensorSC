@@ -1,3 +1,6 @@
+# The Data Format:
+The input of the algorithm is a *non-negative*, *symmetric*, *square* tensor. If your data do not meet these requirements, please preprocess the data. For the data file, each row represent one non-zero element of the tensor, with the format index1, index2, ... , value.
+
 ## English n-gram Data
 Please visit [here](http://www.ngrams.info) to
 register and get the 1-million freelist n-gram data. After downloading the data, we will have
@@ -15,7 +18,7 @@ You will have the following four files:
 * `tensor_w4_.txt`
 * `dic_w4_.txt`
 
-where `tensor_w3_.txt` and `tensor_w4_.txt` are the tensors with sparse storage (each row is one non-zero element in the tensor, with the format index1, index2, ... , value ). `dic_w3_.txt` and `dic_w4_.txt` are the dictionary between nodes in the tensor and actual words.
+where `tensor_w3_.txt` and `tensor_w4_.txt` are the tensors with sparse tensor format. `dic_w3_.txt` and `dic_w4_.txt` are the dictionary between nodes in the tensor and actual words.
 
 ## Chinese n-gram Data
 Click [here](https://www.cs.purdue.edu/homes/wu577/data/Chinese_ngram.zip)
