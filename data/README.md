@@ -1,5 +1,5 @@
 # The Data Format:
-The input of the algorithm is a *non-negative*, *symmetric*, *square* tensor. If your data do not meet these requirements, please preprocess the data. For the data file, each row represent one non-zero element of the tensor, with the format index1, index2, ... , value.
+The input of the algorithm is a **non-negative**, **symmetric**, **square** tensor. If your data do not meet these requirements, please preprocess the data. For the data file, each row represent one non-zero element of the tensor, with the format index1, index2, ... , value. The minimal index number is 1 not 0.
 
 ## English n-gram Data
 Please visit [here](http://www.ngrams.info) to
@@ -39,7 +39,7 @@ to download the Enron data. **Put** the folder `Enron` under the `data` folder. 
 It is already included in the openFlight folder:
 * `airline.txt` contains ID and airline description
 * `airport.txt` contains ID and airport description
-* `tensor_openflight.txt`   is the tensor data
-* `dic_openflight.txt`  ID (first number) of the tenosr and ID (second number) of the airline/airport (539airlines+2939airports).
-* `rectangle.txt`  is the raw rectangular tensor of openFlight data.
+* `tensor_openflight.txt`   is the tensor data (the symmetrized tensor from the raw rectangle tensor) used in the GTSC algorithm. There are 539 airlines (indexed from 1 to 539) and 2939 airports (indexed from 540 to 3478).
+* `dic_openflight.txt`  for each row, the first number is the ID from the tenosr, the second number is the actual ID (used in the `airline.txt` and `airport.txt` files) for the corresponding airline/airport. Tensor ID from 1 - 539 corresponds to airlines, tensor ID from 540 to 3478 corresponds to airports.
+* `rectangle.txt`  is the raw rectangular tensor of openFlight data. It is used for matlab plotting.
 

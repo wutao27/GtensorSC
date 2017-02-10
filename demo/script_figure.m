@@ -9,6 +9,7 @@ clear tempRT
 
 order_airline = load('../data/openFlight/result_airline.txt');
 order_airport = load('../data/openFlight/result_airport.txt');
+% The above result files are the algorithm results. Each line is an airline/airport id sorted based on the algorithm.
 [~,p_airline] = sort(order_airline);
 [~,p_airport] = sort(order_airport);
 
@@ -20,6 +21,7 @@ bb = rand(539,1);
 
 n1 = max(T(:,1));n2 = max(T(:,2));n3 = max(T(:,3));
 shrink1 = 10; shrink2 = 10;shrink3 = 5;
+% skrink is used to combine several neighbor nodes together to decrease the tensor size, as the tensor is too big to plot
 m1 = ceil(n1/shrink1); m2 = ceil(n2/shrink2);m3 = ceil(n3/shrink3);
 x = zeros(m1,m2,m3);
 for i=1:size(T,1)
